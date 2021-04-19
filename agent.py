@@ -3,7 +3,7 @@ from collections import defaultdict
 
 class Agent:
 
-    def __init__(self, nA=6):
+    def __init__(self, epsilon, alpha, gamma=1, nA=6, nS=500):
         """ Initialize agent.
 
         Params
@@ -11,7 +11,12 @@ class Agent:
         - nA: number of actions available to the agent
         """
         self.nA = nA
+        self.nS = nS
         self.Q = defaultdict(lambda: np.zeros(self.nA))
+        self.policy = np.zeros([nS,nA])
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.gamma = gamma
 
     def select_action(self, state):
         """ Given the state, select an action.
@@ -24,7 +29,16 @@ class Agent:
         =======
         - action: an integer, compatible with the task's action space
         """
-        return np.random.choice(self.nA)
+        a_max = np.argmax(self.Q[state][:])
+
+        probs = [(1-self.epsilon+self.epsilon/self.nA if a==a_max
+                  else self.epsilon/self.nA) for a in range(self.nA)]
+
+        self.policy[state][:] = probs
+
+        action = np.random.choice(np.arange(self.nA),p=probs)
+
+        return action
 
     def step(self, state, action, reward, next_state, done):
         """ Update the agent's knowledge, using the most recently sampled tuple.
@@ -37,4 +51,6 @@ class Agent:
         - next_state: the current state of the environment
         - done: whether the episode is complete (True or False)
         """
-        self.Q[state][action] += 1
+
+        self.Q[state][action] += self.alpha*(reward+self.gamma*np.sum(
+                                  self.policy[next_state][:]*self.Q[next_state][:])-self.Q[state][action])
